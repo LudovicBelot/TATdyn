@@ -1,23 +1,29 @@
 import argparse
 from datetime import date, datetime
+import os.path
 
 import utilities
 import recreate_interval
 
 
-#commandline example : python script/main.py -d input/panacota_photo -c input/corefile -o results
+#commandline example : python script/main.py -d input/panacota_photo -c input/core_genome_photorhabdus_genus_features.csv -o results
 def main():
 
     args = get_args()
     today_date = date.today()
     utilities.check_dir(args.outdir, today_date)
-    ref_genome = utilities.ref_genome(args.indir, args.ref)
-    print(ref_genome)
+    ref_genome, list_genomes = utilities.ref_genome(args.indir, args.ref)
+    utilities.combine_input(args.indir, f"{args.outdir}/{today_date}_TATdyn", list_genomes)
+
+
     #First we need to recreate each interval in each genome
     #Note: The first genome in your folder will be considered as reference or you can use -r --ref {genome_name} to set the given genome as the reference
     #This is important because the order of the interval will be based on this genome
-    recreate_interval.main()
-
+    recreate_interval.ref_interval(ref_genome, args.core, f"{args.outdir}/{today_date}_TATdyn")
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/1-core_intervals/Ref_{ref_genome}_intervals.tsv") == False:
+        recreate_interval.check_interval(ref_genome, list_genomes, args.core, f"{args.outdir}/{today_date}_TATdyn")
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/1-core_intervals/all_genomes_intervals.tsv") == False:
+        recreate_interval.recreate_intervals(ref_genome, list_genomes, args.core, f"{args.outdir}/{today_date}_TATdyn")
 
 
 

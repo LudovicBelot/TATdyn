@@ -2,7 +2,6 @@ import os
 import glob
 import pandas as pd
 
-
 def check_dir(outdir, date):
 
     list_f = ["1-core_intervals", "tmp"]
@@ -41,7 +40,39 @@ def ref_genome(input_folder, user_ref):
     df_ref = pd.read_csv(f"{input_folder}/gff3/{ref}.gff", sep = "\t", comment = "#", names = ["contig", "source", "type", "left_c", "right_c", ".", "strand", "0", "id"])
     n_contigs = len(df_ref["contig"].drop_duplicates().tolist())
     if n_contigs == 1:
-        return ref
+        return ref, list_genome
 
     else :
         raise Exception(f"{ref} is not a fully assembled genome, please provide a fully assembled genome for the reference (detected contig : {n_contigs} contigs") 
+    
+
+def combine_input(input_folder, outdir, list_genomes):
+
+    #return two var: a multi index SeqIO object
+    #and a concatanated dataframe with all dataframe formated from the user input (note: it will add a column with the genome name to facilitate the use later)
+
+    #first creating the multi gff dataframe
+    list_df2concatenate = []
+    
+    for i in list_genomes :
+        df_tmp = pd.read_csv(f"{input_folder}/gff3/{i}.gff", sep = "\t", comment = "#", names = ["contig", "source", "type", "left_c", "right_c", ".", "strand", "0", "id"])
+        df_tmp["genome"] = i
+        list_df2concatenate.append(df_tmp)
+    
+    df_all_gff = pd.concat(list_df2concatenate)
+    df_all_gff["id"] = df_all_gff["id"].apply(lambda x: x.split(";",1)[0].split("=")[-1])
+    df_all_gff.to_csv(f"{outdir}/tmp/concat_gff.gff", sep = "\t", index = False)
+
+    # now creating a multi index SeqIO object for 
+    str_cat_prt = "cat "
+    str_cat_fna = "cat "
+
+    for genome in list_genomes:
+        str_cat_fna += f"{input_folder}/Replicons/{genome}.fna "
+        str_cat_prt += f"{input_folder}/Proteins/{genome}.prt "
+    
+    str_cat_prt += f"> {outdir}/tmp/cat_proteins.prt"
+    str_cat_fna += f"> {outdir}/tmp/cat_replicons.fna"
+    
+
+
