@@ -1,0 +1,1 @@
+This script was created with the aim to determine how dynamic is an RGP within a phylogeny
