@@ -1,10 +1,12 @@
 import os
 import glob
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
+
 
 def check_dir(outdir, date):
 
-    list_f = ["1-core_intervals", "tmp"]
+    list_f = ["1-core_intervals", "2-spot_pangenome", "tmp", "tmp/mmseqs"]
 
     list_folders2create = []
     list_folders2create.append(outdir)
@@ -73,6 +75,14 @@ def combine_input(input_folder, outdir, list_genomes):
     
     str_cat_prt += f"> {outdir}/tmp/cat_proteins.prt"
     str_cat_fna += f"> {outdir}/tmp/cat_replicons.fna"
-    
+    os.system(str_cat_prt)
+    os.system(str_cat_fna)
 
 
+def threads2use(n):
+    executor = ThreadPoolExecutor()
+
+    if int(n) != 0 and int(n) <= executor._max_workers:
+        return n
+    else:
+        return executor._max_workers

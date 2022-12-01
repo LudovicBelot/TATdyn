@@ -86,6 +86,7 @@ def recreate_intervals(ref_genome, list_genomes, core_file, outdir):
 
     df_core = pd.read_csv(core_file, sep = "\t", names = ["gene_name", "core_family", "genome_name", "contig", "gene_number", "left_coordinate", "right_coordinate", "strand"], skiprows = 1)   
     df_gff = pd.read_csv(f"{outdir}/tmp/concat_gff.gff", sep = "\t")
+    df_gff = df_gff[df_gff["type"] == "CDS"].reset_index(drop = True)
     df_check = pd.read_csv(f"{outdir}/1-core_intervals/all_genomes_check_corespot.tsv", sep = "\t")
     df_ref_intervals = pd.read_csv(f"{outdir}/1-core_intervals/Ref_{ref_genome}_intervals.tsv", sep = "\t")
 
