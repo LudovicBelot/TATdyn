@@ -96,7 +96,7 @@ def recreate_intervals(ref_genome, list_genomes, core_file, outdir):
         for genome in list_genomes:
             if df_check.loc[interval_number,genome] == "Accepted" :
                 core1, core2 = get_core(df_ref_intervals.loc[interval_number, "left_core_family"], df_ref_intervals.loc[interval_number, "right_core_family"], genome, df_core)
-                d_intervals[interval_number][genome] = get_interval_genes(core1, core2, df_gff, genome)
+                d_intervals[interval_number][genome] = get_interval_genes(core1, core2, df_gff, df_core, genome)
             else :
                 d_intervals[interval_number][genome] = "Rejected"
     
@@ -127,13 +127,23 @@ def check_rearrangement(core1, core2, df_gff, df_core, genome):
     # get the list of genes within the interval (core excluded)
     df_tmp = df_gff[df_gff["genome"] == genome].reset_index(drop = True)
     list_core = df_core[df_core["genome_name"] == genome]["gene_name"].tolist()
+    df_core = df_core[df_core["genome_name"] == genome].sort_values(by = "left_coordinate").reset_index(drop = True)
     list_core.remove(core1)
     list_core.remove(core2)
 
     index_core1 = df_tmp[df_tmp["id"] == core1].index[0]
     index_core2 = df_tmp[df_tmp["id"] == core2].index[0]
     
-    list_genes_interval = df_tmp.iloc[min(index_core1, index_core2)+1:max(index_core1, index_core2)]["id"].tolist()
+    #In case the genome is fully assembled and circular => check if both core are first/last core gene in the genome 
+    if len(df_tmp["contig"].drop_duplicates().tolist()) == 1 and ((df_core[df_core["gene_name"] == core1].index[0] == 0 and df_core[df_core["gene_name"] == core2].index[0] == len(df_core)-1) or (df_core[df_core["gene_name"] == core2].index[0] == 0 and df_core[df_core["gene_name"] == core1].index[0] == len(df_core)-1)):
+        list_genes_interval = []
+        if min(index_core1,index_core2) > 0:
+            list_genes_interval += df_tmp.iloc[:min(index_core1,index_core2)]["id"].tolist()
+        if max(index_core1,index_core2)+1 < len(df_tmp):
+            list_genes_interval += df_tmp.iloc[max(index_core1, index_core2)+1:]["id"].tolist()
+
+    else:
+        list_genes_interval = df_tmp.iloc[min(index_core1, index_core2)+1:max(index_core1, index_core2)]["id"].tolist()
 
     #now checking if there are others core genes within the list_genes_interval
     for gene in list_genes_interval:
@@ -151,10 +161,22 @@ def count_accepted(row, list_columns):
 
     return count
 
-def get_interval_genes(core1, core2, df_gff, genome):
+def get_interval_genes(core1, core2, df_gff, df_core, genome):
 
     df_tmp = df_gff[df_gff["genome"] == genome].reset_index(drop = True)
     index_core1 = df_tmp[df_tmp["id"] == core1].index[0]
     index_core2 = df_tmp[df_tmp["id"] == core2].index[0]
-    return (",").join(df_tmp.iloc[min(index_core1, index_core2)+1:max(index_core1, index_core2)]["id"].tolist())
+    df_core = df_core[df_core["genome_name"] == genome].sort_values(by = "left_coordinate").reset_index(drop = True)
+
+    if len(df_tmp["contig"].drop_duplicates().tolist()) == 1 and ((df_core[df_core["gene_name"] == core1].index[0] == 0 and df_core[df_core["gene_name"] == core2].index[0] == len(df_core)-1) or (df_core[df_core["gene_name"] == core2].index[0] == 0 and df_core[df_core["gene_name"] == core1].index[0] == len(df_core)-1)):
+        list_genes_interval = []
+        if min(index_core1,index_core2) > 0:
+            list_genes_interval += df_tmp.iloc[:min(index_core1,index_core2)]["id"].tolist()
+        if max(index_core1,index_core2)+1 < len(df_tmp):
+            list_genes_interval += df_tmp.iloc[max(index_core1, index_core2)+1:]["id"].tolist()
+
+        return (",").join(list_genes_interval)
+
+    else :
+        return (",").join(df_tmp.iloc[min(index_core1, index_core2)+1:max(index_core1, index_core2)]["id"].tolist())
 
