@@ -29,7 +29,7 @@ def mmseqs_align(outdir, list_genomes, n_threads):
     # The value represents the number of gene homologs part of each family in each genome 
     # Note in case we rejected the genome before: the value will be "?" for the studied genome
     df_table = create_cluster_table(d_interval_genes, list_genomes, df)
-    df_table.to_csv(f"{outdir}//2-spot_pangenome/spot_pangenome_summary.table", sep = "\t")
+    df_table.to_csv(f"{outdir}/2-spot_pangenome/spot_pangenome_summary.table", sep = "\t")
 
 
 
@@ -39,7 +39,7 @@ def row2list(row, list_genomes):
     #return a list of all genes within the same interval in all genomes
     res = []
     for genome in list_genomes:
-        if row[1][genome] != None and row[1][genome] != "Rejected":
+        if isinstance(row[1][genome], float) == False and row[1][genome] != "Rejected":
             res += row[1][genome].split(",")
     
     return res
@@ -113,4 +113,23 @@ def count_gene_in_family(list_genes, genome):
         if gene.rsplit(".",1)[0] == genome:
             count += 1
     
-    return count 
+    return count
+
+
+
+def mmseqs_whole_align(outdir, list_genomes, n_threads):
+
+    #os.system(f"mmseqs easy-cluster {outdir}/tmp/cat_proteins.prt {outdir}/tmp/whole_pangenome {outdir}/tmp/mmseqs --min-seq-id 0.8 -v 0 --threads {n_threads} --remove-tmp-files")
+    d_res_whole = {}
+    d_table_whole = {}
+    n = 1
+    df_whole_pangenome = pd.read_csv(f"{outdir}/tmp/whole_pangenome_cluster.tsv", sep ="\t", names = ["ref", "target"])
+    for gene_family in tqdm(df_whole_pangenome["ref"].drop_duplicates().tolist()):
+        d_res_whole[n] = {"list_homologs":df_whole_pangenome[df_whole_pangenome["ref"] == gene_family]["target"].tolist()}
+        d_table_whole[n] = {}
+        for genome in list_genomes:
+            d_table_whole[n][genome] = count_gene_in_family(df_whole_pangenome[df_whole_pangenome["ref"] == gene_family]["target"].tolist(), genome)
+        n+=1
+    pd.DataFrame.from_dict(d_res_whole, orient = "index").to_csv(f"{outdir}/2-spot_pangenome/whole_pangenome_clusterized.tsv", sep = "\t")
+    pd.DataFrame.from_dict(d_table_whole, orient = "index").to_csv(f"{outdir}/2-spot_pangenome/whole_pangenome_summary.table", sep = "\t")
+    

@@ -25,8 +25,14 @@ def main():
     if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/1-core_intervals/all_genomes_intervals.tsv") == False:
         recreate_interval.recreate_intervals(ref_genome, list_genomes, args.core, f"{args.outdir}/{today_date}_TATdyn")
 
+
+    #Using MMseqs2 to cluster all proteomes together useful to create the Coun model rates (birth death model)
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/2-spot_pangenome/whole_pangenome_summary.table") == False:
+        spot_pangenome.mmseqs_whole_align(f"{args.outdir}/{today_date}_TATdyn", list_genomes, n_threads)
+
+
     #Now using MMseqs2, we align all proteins in each pangenome spot
-    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/2-spot_pangenome/all_spots_mmseqs.tsv") == False:
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/2-spot_pangenome/spot_pangenome_summary.table") == False:
         spot_pangenome.mmseqs_align(f"{args.outdir}/{today_date}_TATdyn", list_genomes, n_threads)
 
 
