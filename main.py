@@ -6,6 +6,7 @@ import utilities
 import recreate_interval
 import spot_pangenome
 import HTgenes
+import HCspot
 
 #commandline example : 
 # python script/main.py -d input/full_photo -c input/full_photo/fully_assembled_photo_corefeatures.tsv -o results -t input/full_photo/tree_full_photo_rooted_asymbiotica.nwk -r Ph22.1222.00005 --threads 0
@@ -41,8 +42,21 @@ def main():
         spot_pangenome.mmseqs_align(f"{args.outdir}/{today_date}_TATdyn", list_genomes, n_threads)
 
     #running Count to determine which genes are Horizontally transfered
-    HTgenes.run_Count(f"{args.outdir}/{today_date}_TATdyn")
-    HTgenes.determine_HTgenes(f"{args.outdir}/{today_date}_TATdyn")
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/2-spot_pangenome/Final_spot_pangenome_HTg.tsv") == False:
+        HTgenes.run_Count(f"{args.outdir}/{today_date}_TATdyn")
+        HTgenes.determine_HTgenes(f"{args.outdir}/{today_date}_TATdyn")
+    
+    n_HTevents, m_spots = HTgenes.HTg_per_spot(f"{args.outdir}/{today_date}_TATdyn")
+
+
+    #running a simulations of random distribution of the n HTevents within the m Spots
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/3-HC_analysis/HC_simulation.tsv") == False:
+        t95 = HCspot.HC_sim(n_HTevents, m_spots, f"{args.outdir}/{today_date}_TATdyn")
+        HCspot.HC_spot(t95, f"{args.outdir}/{today_date}_TATdyn")
+
+
+
+
 
 
 def get_args():

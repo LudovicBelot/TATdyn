@@ -36,7 +36,7 @@ def ref_interval(ref_genome, core_file, outdir):
     
     df_intervals = pd.DataFrame.from_dict(d_intervals, orient = "index")
 
-    df_intervals.to_csv(f"{outdir}/1-core_intervals/Ref_{ref_genome}_intervals.tsv", sep = "\t", index = False)
+    df_intervals.to_csv(f"{outdir}/1-core_intervals/Ref_genome_intervals.tsv", sep = "\t", index = False)
 
 
 
@@ -51,7 +51,7 @@ def check_interval(ref_genome, list_genomes, core_file, outdir):
     # rejected (differents contigs) or rejected (rearrangments)
     # last columns count the number of accepted genomes in which we can rebuild the interval
 
-    df_ref = pd.read_csv(f"{outdir}/1-core_intervals/Ref_{ref_genome}_intervals.tsv", sep = "\t")
+    df_ref = pd.read_csv(f"{outdir}/1-core_intervals/Ref_genome_intervals.tsv", sep = "\t")
     df_core = pd.read_csv(core_file, sep = "\t", names = ["gene_name", "core_family", "genome_name", "contig", "gene_number", "left_coordinate", "right_coordinate", "strand"], skiprows = 1)   
     df_gff = pd.read_csv(f"{outdir}/tmp/concat_gff.gff", sep = "\t")
 
@@ -88,7 +88,7 @@ def recreate_intervals(ref_genome, list_genomes, core_file, outdir):
     df_gff = pd.read_csv(f"{outdir}/tmp/concat_gff.gff", sep = "\t")
     df_gff = df_gff[df_gff["type"] == "CDS"].reset_index(drop = True)
     df_check = pd.read_csv(f"{outdir}/1-core_intervals/all_genomes_check_corespot.tsv", sep = "\t")
-    df_ref_intervals = pd.read_csv(f"{outdir}/1-core_intervals/Ref_{ref_genome}_intervals.tsv", sep = "\t")
+    df_ref_intervals = pd.read_csv(f"{outdir}/1-core_intervals/Ref_genome_intervals.tsv", sep = "\t")
 
     d_intervals = {}
     for interval_number in tqdm(df_ref_intervals["interval_number"].tolist(), desc = "Recreating all intervals in all genomes (if validated)"):

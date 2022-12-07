@@ -21,7 +21,8 @@ def HC_sim(n_HT_genes, m_spots, outdir, **kwargs):
         d_res_sim[i] = {"max_HTgene_1spot": run_sim(n_HT_genes, m_spots, mode)}
 
     #now creating the histogram plot
-    distribution_plot(d_res_sim, outdir)
+    t95 = distribution_plot(d_res_sim, outdir)
+    return t95
 
 
 def run_sim(n_HT_genes, m_spots, mode):
@@ -67,26 +68,54 @@ def distribution_plot(d_res_sim, outdir):
     plt.xlabel("max_HTgene_1spot")
     plt.ylabel("n_simulation_run")
     plt.tight_layout()
-    plt.savefig(f"{outdir}/HC_simulations_distribution.png")
+    plt.savefig(f"{outdir}/3-HC_analysis/HC_simulations_distribution.png")
 
-    with open(f"{outdir}/HC_simulations_distribution.tsv", "w") as f:
+    with open(f"{outdir}/3-HC_analysis/HC_simulations_distribution.tsv", "w") as f:
         f.write(f"#T95% on this dataset = {np.percentile(df_sim['max_HTgene_1spot'].tolist(), 95)}\n")
-    with open(f"{outdir}/HC_simulations_distribution.tsv", "a") as f:
+    with open(f"{outdir}/3-HC_analysis/HC_simulations_distribution.tsv", "a") as f:
         df_sim.to_csv(f, sep = "\t", index = False)
 
-def HC_pangenome(outdir):
+    return np.percentile(df_sim['max_HTgene_1spot'].tolist(), 95)
 
-    #function which determine which spot can be considered as an Hotspot or not (based on the simulation)
-    df_spot = pd.read_csv(f"{outdir}/2-spot_pangenome/HTgenes_spot.tsv", sep = "\t")
+def HC_spot(t95, outdir):
 
-    with open(f"{outdir}/3-HC_analysis/HC_simulations_distribution.tsv", "r") as f:
-        for line in f:
-            T95_percentile = int(line.split("#T95% on this dataset = ")[1].strip())
-            break
+    #function which update 
+    df_spot = pd.read_csv(f"{outdir}/3-HC_analysis/HTevents_per_spot.tsv", sep = "\t") 
+    pd.to_numeric(df_spot["HTevents_number"])
+    df_spot["HC_spot"] = df_spot.apply(lambda x: "Hotspot" if x["HTevents_number"] >= t95 else ("Coldspot" if x["n_accessory_gene_families"] > 0 else "Empty_spot"), axis = 1)
+    index_sum = df_spot[df_spot["spot_number"] == "TOTAL HTevents/TOTAL accessory families"].index[0]
+    df_spot.loc[index_sum,"HC_spot"] = ""
+    df_spot.to_csv(f"{outdir}/3-HC_analysis/HC_spots_pangenome.tsv", sep = "\t", index = False)
+
+    #Also produce a summary file
+    with open(f"{outdir}/3-HC_analysis/HC_summary.txt", "w") as f:
+        f.write(f"N_accessory_genes_whole_pangenome:\t{df_spot.loc[index_sum,'n_accessory_gene_families']}\n")
+        f.write(f"N_HTevents_whole_pangenome:\t{df_spot.loc[index_sum,'HTevents_number']}\n")
+        f.write(f"T95_percentile:\t{t95}\n")
+        f.write(f"N_total_spots:\t{index_sum}\n")
+        f.write(f"N_Hotspot(s):\t{len(df_spot[df_spot['HC_spot'] == 'Hotspot'])} ({len(df_spot[df_spot['HC_spot'] == 'Hotspot'])/index_sum*100}% all spots or {len(df_spot[df_spot['HC_spot'] == 'Hotspot'])/(len(df_spot[df_spot['HC_spot'] == 'Hotspot'])+len(df_spot[df_spot['HC_spot'] == 'Coldspot']))*100}% non empty spots)\n")
+        f.write(f"N_Coldspot(s):\t{len(df_spot[df_spot['HC_spot'] == 'Coldspot'])} ({len(df_spot[df_spot['HC_spot'] == 'Coldspot'])/index_sum*100}% all spots or {len(df_spot[df_spot['HC_spot'] == 'Coldspot'])/(len(df_spot[df_spot['HC_spot'] == 'Hotspot'])+len(df_spot[df_spot['HC_spot'] == 'Coldspot']))*100}% non empty spots)\n")
+        f.write(f"N_Empty_spot(s):\t{len(df_spot[df_spot['HC_spot'] == 'Empty_spot'])} ({len(df_spot[df_spot['HC_spot'] == 'Empty_spot'])/index_sum*100}%)\n")
+        f.write(f"HTg50:\t{HTg50(df_spot)}\n")
+
+
+def HTg50(df):
+    #return the minimal number of spot to contains 50% of the HTgenes
+    total_HTevents = df.loc[df[df["spot_number"] == "TOTAL HTevents/TOTAL accessory families"].index[0], "HTevents_number"]
+    df = df[df["spot_number"] != "TOTAL HTevents/TOTAL accessory families"].sort_values(by= "HTevents_number", ascending = False).reset_index(drop =True)
+
+    count = 0
+    count_htevent = 0
+    half_htevent = int(total_HTevents)/2
+
+    while count_htevent < half_htevent:
+        count_htevent += df.loc[count,"HTevents_number"]
+        print(count_htevent, "/", half_htevent)
+        count += 1
+        print("Count",count)
     
-    pd.to_numeric(df_spot["n_HTgenes"])
-    df_spot["HC_spot"] = df_spot.apply(lambda x: "Hotspot" if x["n_HTgenes"] >= T95_percentile else "Coldspot")
-    df_spot.to_csv(f"{outdir}/2-spot_pangenome/HTgenes_spot.tsv", sep = "\t", index = False)
+    return count
+
 
 
 

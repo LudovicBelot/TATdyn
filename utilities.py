@@ -6,7 +6,7 @@ from Bio import Phylo
 
 def check_dir(outdir, date):
 
-    list_f = ["1-core_intervals", "2-spot_pangenome", "tmp", "tmp/mmseqs"]
+    list_f = ["1-core_intervals", "2-spot_pangenome", "3-HC_analysis", "tmp", "tmp/mmseqs"]
 
     list_folders2create = []
     list_folders2create.append(outdir)
