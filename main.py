@@ -57,7 +57,8 @@ def main():
 
     # Now determining the dissimilarity index 
     # Ref = "Partioning the turnover and nestedness components of beta diversity, Andrés Baselga, 2010 Global Ecology and Biogeography"
-    Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn")
+    list_combinaisons, index_genome = Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn")
+    Spot_dissimilarity.calculate_dissimilarity(list_combinaisons, index_genome, f"{args.outdir}/{today_date}_TATdyn")
 
 
 

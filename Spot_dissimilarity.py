@@ -28,17 +28,22 @@ def prepare_data(outdir):
     d_res = {}
     test = 0
     for spot in tqdm(df_table_spot_mmseqs["spot"].tolist(), desc = "Preparing each spot data for dissimilarity calcul"):
-        d_res[spot] = {}
+        d_res[spot] = {"spot": spot}
         for g, genome_name in d_genome_index.items():
             d_res[spot][f"{g}_total_accessory"] = count_accessory_genes(genome_name, spot, df_table_spot_mmseqs)
         for genome_combinaison in list_genome_combinaisons:
             d_res[spot][f"g{genome_combinaison[0]}_g{genome_combinaison[1]}_common_accessory"] = count_common_accessory_genes(d_genome_index[f"g{genome_combinaison[0]}"], d_genome_index[f"g{genome_combinaison[1]}"], spot, df_table_spot_mmseqs)
 
     df_res = pd.DataFrame.from_dict(d_res, orient = "index")
-    df_res["ST"] = df_res.apply(lambda x: total_accessory(x), axis = 1)
+
+    list_columns2include = df_res.columns.tolist()
+    list_columns2include = [x for x in list_columns2include if "total" in x]
+
+    df_res["ST"] = df_res[list_columns2include].apply(lambda x: total_accessory(x), axis = 1)
 
     df_res.to_csv(f"{outdir}/4-Spot_dissimilarity/data_prepared4calcul.tsv", sep ="\t", index = False)
 
+    return list_genome_combinaisons, d_genome_index
 
 
 def generate_combinaison(j):
@@ -84,8 +89,37 @@ def count_common_accessory_genes(genome1, genome2, spot_number, df_mmseqs):
 
 def total_accessory(row):
     count = 0
-    for i in row.values:
+    for i in row.values():
         if i != "?":
             count += int(i)
     
     return count
+
+
+def calculate_dissimilarity(list_combinaisons, index_genome, outdir):
+
+    tqdm.pandas()
+    df_spot_prepared = pd.read_csv(f"{outdir}/4-Spot_dissimilarity/data_prepared4calcul.tsv", sep = "\t")
+    df_spot_prepared["βsor"] = df_spot_prepared.progress_apply(lambda x: calculate_βsor(x, list_combinaisons, index_genome), axis = 1)
+    df_spot_prepared[["spot","βsor"]].to_csv(f"{outdir}/4-Spot_dissimilarity/Final_pot_dissimilarity_index.tsv", sep = "\t", index = False)
+
+
+def calculate_βsor(row, list_combinaisons, index_genome):
+
+    #refer to the publication
+    sum_min = 0
+    sum_max = 0
+    for combinaison in list_combinaisons:
+        #checking if we could recreate the interval for both genes
+        if row[f"g{combinaison[0]}_total_accessory"] != "?" and row[f"g{combinaison[1]}_total_accessory"] != "?":
+            sum_min += min( int(row[f"g{combinaison[0]}_total_accessory"]) - int(row[f"g{combinaison[0]}_g{combinaison[1]}_common_accessory"]) , int(row[f"g{combinaison[1]}_total_accessory"]) - int(row[f"g{combinaison[0]}_g{combinaison[1]}_common_accessory"]))
+            sum_max += max( int(row[f"g{combinaison[0]}_total_accessory"]) - int(row[f"g{combinaison[0]}_g{combinaison[1]}_common_accessory"]) , int(row[f"g{combinaison[1]}_total_accessory"]) - int(row[f"g{combinaison[0]}_g{combinaison[1]}_common_accessory"]))
+        else :
+            continue
+
+    sum_SI_ST = 0
+    for genome in index_genome.keys():
+        if row[f"{genome}_total_accessory"] != "?":
+            sum_SI_ST += int(row[f"{genome}_total_accessory"])-int(row["ST"])
+    
+    return  (sum_min + sum_max)/(2*sum_SI_ST + sum_min + sum_max)
