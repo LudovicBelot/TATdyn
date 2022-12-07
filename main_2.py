@@ -7,7 +7,7 @@ import HTgenes
 import HCspot
 
 
-#commandline : python script/main_2.py -c input/posterior_ancestral_photo_spot.tsv --dir results/2022-12-02_TATdyn
+#commandline : python script/main_2.py -c input/full_photo/count_full_photo_spot.xml --dir results/2022-12-06_TATdyn
 
 
 
@@ -34,6 +34,7 @@ def get_args():
 
     parser.add_argument("--dir", "-d",
                         help = " (REQUIRED) Outdir in which there are the results from the first script", required = True)
+    
     
     args = parser.parse_args()
     return args

@@ -30,6 +30,8 @@ def mmseqs_align(outdir, list_genomes, n_threads):
     # Note in case we rejected the genome before: the value will be "?" for the studied genome
     df_table = create_cluster_table(d_interval_genes, list_genomes, df)
     df_table.to_csv(f"{outdir}/2-spot_pangenome/spot_pangenome_summary.table", sep = "\t")
+    df_table_formated = df_table.applymap(lambda x: 0 if x == "?" else x)
+    df_table_formated.to_csv(f"{outdir}/2-spot_pangenome/spot_pangenome_summary_formated.table", sep = "\t")
 
 
 
@@ -119,7 +121,7 @@ def count_gene_in_family(list_genes, genome):
 
 def mmseqs_whole_align(outdir, list_genomes, n_threads):
 
-    #os.system(f"mmseqs easy-cluster {outdir}/tmp/cat_proteins.prt {outdir}/tmp/whole_pangenome {outdir}/tmp/mmseqs --min-seq-id 0.8 -v 0 --threads {n_threads} --remove-tmp-files")
+    os.system(f"mmseqs easy-cluster {outdir}/tmp/cat_proteins.prt {outdir}/tmp/whole_pangenome {outdir}/tmp/mmseqs --min-seq-id 0.8 -v 0 --threads {n_threads} --remove-tmp-files")
     d_res_whole = {}
     d_table_whole = {}
     n = 1

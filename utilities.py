@@ -2,7 +2,7 @@ import os
 import glob
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
-
+from Bio import Phylo
 
 def check_dir(outdir, date):
 
@@ -86,3 +86,13 @@ def threads2use(n):
         return n
     else:
         return executor._max_workers
+
+
+def name_tree(treefile, outdir):
+    tree = Phylo.read(treefile, "newick")
+    n = 1
+    for node in tree.get_nonterminals():
+        node.name = f"node{n}"
+        n += 1
+    
+    Phylo.write(tree, f"{outdir}/2-spot_pangenome/tree_renamed.nwk", 'newick')
