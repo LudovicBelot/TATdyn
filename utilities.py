@@ -1,8 +1,11 @@
 import os
 import glob
 import pandas as pd
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from Bio import Phylo
+from multiprocessing import  Pool
+
 
 def check_dir(outdir, date):
 
@@ -96,3 +99,56 @@ def name_tree(treefile, outdir):
         n += 1
     
     Phylo.write(tree, f"{outdir}/2-spot_pangenome/tree_renamed.nwk", 'newick')
+
+
+def multicore_pd_apply(df, func, **kwargs):
+    #small function to parralelize pandas apply functions
+    n_core = kwargs.get("n_core", 1)
+
+    df_split = np.array_split(df,n_core)
+    pool = Pool(n_core)
+    df = pd.concat(pool.map(func, df_split))
+    pool.close()
+    pool.join()
+    return df
+
+
+def combine_results(outdir, **kwargs):
+    user_genes = kwargs.get("user_gene", None)
+    #small functions which will combine the results from Hot/Coldspot analysis with the dissimilarity index for each spot
+    # Also will add a column with the localization of each user genes if given
+    #loading both results dataframe
+
+    df_HC = pd.read_csv(f"{outdir}/3-HC_analysis/HC_spots_pangenome.tsv", sep = "\t")
+    df_dissimilarity = pd.read_csv(f"{outdir}/4-Spot_dissimilarity/Final_spot_dissimilarity_index.tsv", sep = "\t")
+
+    #reordering the dataframe + renaming the columns
+    df_HC = df_HC.rename(columns = {"spot_number": "spot", "HTevents_number": "HTg", "ref_genome_left_c": "ref_left_c", "ref_genome_right_c": "ref_right_c"})
+    df_HC = df_HC.loc[:,["spot", "ref_left_c", "ref_right_c", "HTg", "HC_spot"]].iloc[:-1]
+    df_HC["spot"] = df_HC["spot"].astype("int")
+    df_dissimilarity["spot"] = df_dissimilarity["spot"].astype("int")
+    df_res = pd.merge(df_HC, df_dissimilarity, on = "spot", how = "left")
+    df_res[["ref_left_c", "ref_right_c"]] = df_res[["ref_left_c", "ref_right_c"]].astype("int")
+
+    #in case the user provide a file with the coordinates of elements to localize, add a new column with the id of the element within the corresponding spot
+    if user_genes != None:
+        df_user = pd.read_csv(user_genes, sep = "\t", comment = "#", names = ["id", "left_c", "right_c"])
+        df_user[["left_c", "right_c"]] = df_user[["left_c", "right_c"]].astype("int")
+        df_res["user_id"] = [[] for _ in range(len(df_res))]
+        for elements_row in df_user.iterrows():
+            if df_res[(df_res["ref_left_c"] <= int(elements_row[1]["left_c"])) & (df_res["ref_right_c"] >= int(elements_row[1]["right_c"]))].empty == False:
+                tmp_idx = df_res[(df_res["ref_left_c"] <= int(elements_row[1]["left_c"])) & (df_res["ref_right_c"] >= int(elements_row[1]["right_c"]))].index[0]
+                df_res.loc[tmp_idx, "user_id"].append(elements_row[1]['id'])
+
+            else : 
+                print(f"User input element {elements_row[1]['id']}, could not be placed within the spot pangenome generated (part of core genome ?)")
+
+        df_res["user_id"] = df_res.apply(lambda x: (",").join(x["user_id"]), axis = 1)
+        df_res[df_res["user_id"] != ""].to_csv(f"{outdir}/all_results_with_user_id_spots_only.tsv", sep = "\t", index = False)
+
+
+    df_res.to_csv(f"{outdir}/all_results_combined.tsv", sep = "\t", index = False)
+    df_filtered = df_res[df_res["HC_spot"] != "Empty_spot"]
+    df_filtered = df_filtered[(df_filtered["βsor"] != 0) & (df_filtered["βsor"].notnull()) & (df_filtered["βsim"] != "div0")].sort_values(by ="HC_spot")
+    df_filtered.to_csv(f"{outdir}/all_results_combined_filtered.tsv", sep = "\t", index = False)
+

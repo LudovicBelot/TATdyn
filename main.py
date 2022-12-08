@@ -10,7 +10,8 @@ import HCspot
 import Spot_dissimilarity
 
 #commandline example : 
-# python script/main.py -d input/full_photo -c input/full_photo/fully_assembled_photo_corefeatures.tsv -o results -t input/full_photo/tree_full_photo_rooted_asymbiotica.nwk -r Ph22.1222.00005 --threads 0
+# python script/main.py -d input/full_photo -c input/full_photo/fully_assembled_photo_corefeatures.tsv -o results -t input/full_photo/tree_full_photo_rooted_asymbiotica.nwk -r Ph22.1222.00005 --threads 0 --mygenes input/TT01_TA_coordinates.tsv
+
 def main():
 
     args = get_args()
@@ -57,10 +58,13 @@ def main():
 
     # Now determining the dissimilarity index 
     # Ref = "Partioning the turnover and nestedness components of beta diversity, Andrés Baselga, 2010 Global Ecology and Biogeography"
-    list_combinaisons, index_genome = Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn")
-    Spot_dissimilarity.calculate_dissimilarity(list_combinaisons, index_genome, f"{args.outdir}/{today_date}_TATdyn")
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/4-Spot_dissimilarity/Final_spot_dissimilarity_index.tsv") == False:
+        list_combinaisons, index_genome = Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn")
+        Spot_dissimilarity.calculate_dissimilarity(list_combinaisons, index_genome, f"{args.outdir}/{today_date}_TATdyn")
 
-
+    #combine the results in one final file
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/all_results.tsv") == False:
+        utilities.combine_results(f"{args.outdir}/{today_date}_TATdyn", user_gene = args.mygenes)
 
 
 def get_args():
@@ -83,6 +87,15 @@ def get_args():
                         help = "If you want to specify which genome in you dataset will serve as reference (default: the first in your dataset), \n Note: At least this genome needs to be fully assembled",
                         default = None
                         )
+    parser.add_argument("--mygenes", "-g",
+                        help = "Tsv file with the genes you want",
+                        default= None
+                        )
+    parser.add_argument("--cpu",
+                        help ="Number of cores to use (default = 1), 0 for the max core to use",
+                        default = 1
+                        )
+
 
     parser.add_argument("--threads",
                         help = "Number of threads to use (default = 1) 0 for the max threads to use",
