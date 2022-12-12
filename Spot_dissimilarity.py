@@ -1,12 +1,13 @@
 import pandas as pd
 from tqdm import tqdm
 
+import concurrent.futures
 
 
 
-
-def prepare_data(outdir):
+def prepare_data(outdir, **kwargs):
     #function which uses the previous results to create a tsv files with all informations needed for spot turneover/nestedness calcul
+    n_core = kwargs.get("n_core", 1)
 
     df_table_spot_mmseqs = pd.read_csv(f"{outdir}/2-spot_pangenome/spot_pangenome_summary.table", sep = "\t").rename(columns = {"Unnamed: 0":"id"})
     df_table_spot_mmseqs["spot"] = df_table_spot_mmseqs.apply(lambda x: x["id"].split("_")[0], axis = 1)
@@ -26,15 +27,22 @@ def prepare_data(outdir):
     list_genome_combinaisons = generate_combinaison(index_genome)
     
     d_res = {}
-    test = 0
-    for spot in tqdm(df_table_spot_mmseqs["spot"].tolist(), desc = "Preparing each spot data for dissimilarity calcul"):
-        d_res[spot] = {"spot": spot, "ST": len(df_table_spot_mmseqs[df_table_spot_mmseqs["spot"] == spot])}
-        for g, genome_name in d_genome_index.items():
-            d_res[spot][f"{g}_total_accessory"] = count_accessory_genes(genome_name, spot, df_table_spot_mmseqs)
-        for genome_combinaison in list_genome_combinaisons:
-            d_res[spot][f"g{genome_combinaison[0]}_g{genome_combinaison[1]}_common_accessory"] = count_common_accessory_genes(d_genome_index[f"g{genome_combinaison[0]}"], d_genome_index[f"g{genome_combinaison[1]}"], spot, df_table_spot_mmseqs)
-
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = {executor.submit(multi_cpu_prepare, spot, df_table_spot_mmseqs, list_genome_combinaisons, d_genome_index): spot for spot in df_table_spot_mmseqs["spot"].tolist()}
+        #progress_bar
+        for f in tqdm(concurrent.futures.as_completed(futures), total = len(df_table_spot_mmseqs["spot"].tolist()), desc = " Preparing each spot data for index dissimilarity calcul"):
+            pass
+    
+        for future in concurrent.futures.as_completed(futures):
+            try :
+                k,v = future.result()
+            except Exception as e:
+                print(f"{futures[future]} throws {e}")
+            else :
+                d_res[k]= v
+    
     df_res = pd.DataFrame.from_dict(d_res, orient = "index")
+    print(df_res)
 
     list_columns2include = df_res.columns.tolist()
     list_columns2include = [x for x in list_columns2include if "total" in x]
@@ -139,3 +147,15 @@ def calculate_βsor(row, list_combinaisons, index_genome):
 
     return {"spot": row["spot"], "βsor":βsor, "βsim":βsim, "βnes":βnes}
     
+
+def multi_cpu_prepare(spot, df_table_spot_mmseqs, list_genome_combinaisons, d_genome_index):
+
+    d_tmp = {}
+    d_tmp[spot] = {"spot": spot, "ST": len(df_table_spot_mmseqs[df_table_spot_mmseqs["spot"] == spot])}
+    for g, genome_name in d_genome_index.items():
+        d_tmp[spot][f"{g}_total_accessory"] = count_accessory_genes(genome_name, spot, df_table_spot_mmseqs)
+    for genome_combinaison in list_genome_combinaisons:
+        d_tmp[spot][f"g{genome_combinaison[0]}_g{genome_combinaison[1]}_common_accessory"] = count_common_accessory_genes(d_genome_index[f"g{genome_combinaison[0]}"], d_genome_index[f"g{genome_combinaison[1]}"], spot, df_table_spot_mmseqs)
+
+
+    return spot, d_tmp[spot]

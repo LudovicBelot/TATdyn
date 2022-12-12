@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from Bio import Phylo
+import multiprocessing
 from multiprocessing import  Pool
 
 
@@ -90,6 +91,12 @@ def threads2use(n):
     else:
         return executor._max_workers
 
+
+def core2use(n):
+    if int(n) != 0 and int(n) <= multiprocessing.cpu_count():
+        return n
+    else :
+        return multiprocessing.cpu_count()
 
 def name_tree(treefile, outdir):
     tree = Phylo.read(treefile, "newick")

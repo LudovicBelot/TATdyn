@@ -11,7 +11,7 @@ import Spot_dissimilarity
 
 #commandline example : 
 # python script/main.py -d input/full_photo -c input/full_photo/fully_assembled_photo_corefeatures.tsv -o results -t input/full_photo/tree_full_photo_rooted_asymbiotica.nwk -r Ph22.1222.00005 --threads 0 --mygenes input/TT01_TA_coordinates.tsv
-
+# python script/main.py -c input/core_genome_photorhabdus_genus_features.csv --indir input/panacota_photo --outdir results --tree input/panacota_photo/photo_genus.treefile --mygenes input/list_TA/TT01_TA_coordinates.tsv --threads 0
 def main():
 
     args = get_args()
@@ -20,6 +20,7 @@ def main():
     ref_genome, list_genomes = utilities.ref_genome(args.indir, args.ref)
     utilities.combine_input(args.indir, f"{args.outdir}/{today_date}_TATdyn", list_genomes)
     n_threads = utilities.threads2use(args.threads)
+    n_cores = utilities.core2use(args.cpu)
     #adding names for each non-terminals nodes if they do not exist, useful later to determine which genes are HTgenes
     utilities.name_tree(args.tree, f"{args.outdir}/{today_date}_TATdyn")
 
@@ -34,7 +35,7 @@ def main():
         recreate_interval.recreate_intervals(ref_genome, list_genomes, args.core, f"{args.outdir}/{today_date}_TATdyn")
 
 
-    #Using MMseqs2 to cluster all proteomes together useful to create the Coun model rates (birth death model)
+    #Using MMseqs2 to cluster all proteomes together useful to create the Count model rates (birth death model)
     if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/2-spot_pangenome/whole_pangenome_summary.table") == False:
         spot_pangenome.mmseqs_whole_align(f"{args.outdir}/{today_date}_TATdyn", list_genomes, n_threads)
 
@@ -59,7 +60,7 @@ def main():
     # Now determining the dissimilarity index 
     # Ref = "Partioning the turnover and nestedness components of beta diversity, Andrés Baselga, 2010 Global Ecology and Biogeography"
     if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/4-Spot_dissimilarity/Final_spot_dissimilarity_index.tsv") == False:
-        list_combinaisons, index_genome = Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn")
+        list_combinaisons, index_genome = Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn", n_core = n_cores)
         Spot_dissimilarity.calculate_dissimilarity(list_combinaisons, index_genome, f"{args.outdir}/{today_date}_TATdyn")
 
     #combine the results in one final file
