@@ -130,8 +130,8 @@ def combine_results(outdir, **kwargs):
     df_dissimilarity = pd.read_csv(f"{outdir}/4-Spot_dissimilarity/Final_spot_dissimilarity_index.tsv", sep = "\t")
 
     #reordering the dataframe + renaming the columns
-    df_HC = df_HC.rename(columns = {"spot_number": "spot", "HTevents_number": "HTg", "ref_genome_left_c": "ref_left_c", "ref_genome_right_c": "ref_right_c"})
-    df_HC = df_HC.loc[:,["spot", "ref_left_c", "ref_right_c", "HTg", "HC_spot"]].iloc[:-1]
+    df_HC = df_HC.rename(columns = {"spot_number": "spot", "HTevents_number": "HTg", "n_accessory_gene_families": "n_acc", "ref_genome_left_c": "ref_left_c", "ref_genome_right_c": "ref_right_c"})
+    df_HC = df_HC.loc[:,["spot", "ref_left_c", "ref_right_c", "n_acc", "HTg", "HC_spot"]].iloc[:-1]
     df_HC["spot"] = df_HC["spot"].astype("int")
     df_dissimilarity["spot"] = df_dissimilarity["spot"].astype("int")
     df_res = pd.merge(df_HC, df_dissimilarity, on = "spot", how = "left")

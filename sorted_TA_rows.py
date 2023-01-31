@@ -3,7 +3,7 @@ import sys
 import os
 
 
-#python script/sorted_TA_rows.py input/list_TA/TA_sorted_list.tsv.csv results/2022-12-08_TATdyn/all_results_with_user_id_spots_only.tsv results/2022-12-08_TATdyn/sorted_TA
+#python script/sorted_TA_rows.py input/list_TA/TA_sorted_list.tsv.csv results/2023-01-26_TATdyn_6_full_photo_nopb/all_results_with_user_id_spots_only.tsv results/2023-01-26_TATdyn_6_full_photo_nopb/23-01-30_sorted_TA
 
 def main():
 
@@ -32,6 +32,8 @@ def main():
 
                 
     for k,v in d.items():
+        v["Spot_lentgh"] = v.apply(lambda x: max(int(x["ref_left_c"]),int(x["ref_right_c"])) - min(int(x["ref_left_c"]),int(x["ref_right_c"])) , axis = 1) #Added the length of the spot
+        
         v.to_csv(f"{outdir}/TAT_dyn_list_{k}.tsv", sep = "\t", index = False)
 
 

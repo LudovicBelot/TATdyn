@@ -12,6 +12,8 @@ import Spot_dissimilarity
 #commandline example : 
 # python script/main.py -d input/full_photo -c input/full_photo/fully_assembled_photo_corefeatures.tsv -o results -t input/full_photo/tree_full_photo_rooted_asymbiotica.nwk -r Ph22.1222.00005 --threads 0 --mygenes input/TT01_TA_coordinates.tsv
 # python script/main.py -c input/core_genome_photorhabdus_genus_features.csv --indir input/panacota_photo --outdir results --tree input/panacota_photo/photo_genus.treefile --mygenes input/list_TA/TT01_TA_coordinates.tsv --threads 0
+
+
 def main():
 
     args = get_args()
@@ -23,7 +25,6 @@ def main():
     n_cores = utilities.core2use(args.cpu)
     #adding names for each non-terminals nodes if they do not exist, useful later to determine which genes are HTgenes
     utilities.name_tree(args.tree, f"{args.outdir}/{today_date}_TATdyn")
-
 
     #First we need to recreate each interval in each genome
     #Note: The first genome in your folder will be considered as reference or you can use -r --ref {genome_name} to set the given genome as the reference
@@ -63,6 +64,10 @@ def main():
         list_combinaisons, index_genome = Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn", n_core = n_cores)
         Spot_dissimilarity.calculate_dissimilarity(list_combinaisons, index_genome, f"{args.outdir}/{today_date}_TATdyn")
 
+
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/5-optional_defense-finder/defense_finder") == False and args.defense_finder == True:
+
+
     #combine the results in one final file
     if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/all_results.tsv") == False:
         utilities.combine_results(f"{args.outdir}/{today_date}_TATdyn", user_gene = args.mygenes)
@@ -92,12 +97,15 @@ def get_args():
                         help = "Tsv file with the genes you want",
                         default= None
                         )
+    parser.add_argument("--defense_finder",
+                        help = "If you want to also research potential antiviral system in every spot, it will use Defense-finder developed by F. Tesson et al, 2022",
+                        action='store_true',
+                        default= False
+                        )
     parser.add_argument("--cpu",
                         help ="Number of cores to use (default = 1), 0 for the max core to use",
                         default = 1
                         )
-
-
     parser.add_argument("--threads",
                         help = "Number of threads to use (default = 1) 0 for the max threads to use",
                         default = 1

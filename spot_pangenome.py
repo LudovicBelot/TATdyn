@@ -17,7 +17,7 @@ def mmseqs_align(outdir, list_genomes, n_threads):
         if len(list_genes2cluster) > 1:
             d_interval_genes[interval[1]["interval_number"]] = interval_cluster(list_genes2cluster, prt_seqio, outdir, n_threads)
         elif len(list_genes2cluster) == 1:
-            d_interval_genes[interval[1]["interval_number"]] = {1: list_genes2cluster[0]}
+            d_interval_genes[interval[1]["interval_number"]] = {1: [list_genes2cluster[0]]}
     
     d_interval_genes, d2_save = format_dic(d_interval_genes)
 

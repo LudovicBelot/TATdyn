@@ -4,7 +4,6 @@ from tqdm import tqdm
 import concurrent.futures
 
 
-
 def prepare_data(outdir, **kwargs):
     #function which uses the previous results to create a tsv files with all informations needed for spot turneover/nestedness calcul
     n_core = kwargs.get("n_core", 1)
@@ -42,7 +41,6 @@ def prepare_data(outdir, **kwargs):
                 d_res[k]= v
     
     df_res = pd.DataFrame.from_dict(d_res, orient = "index")
-    print(df_res)
 
     list_columns2include = df_res.columns.tolist()
     list_columns2include = [x for x in list_columns2include if "total" in x]
@@ -124,6 +122,7 @@ def calculate_βsor(row, list_combinaisons, index_genome):
             sum_max += max( int(row[f"g{combinaison[0]}_total_accessory"]) - int(row[f"g{combinaison[0]}_g{combinaison[1]}_common_accessory"]) , int(row[f"g{combinaison[1]}_total_accessory"]) - int(row[f"g{combinaison[0]}_g{combinaison[1]}_common_accessory"]))
         else :
             continue
+
     ST = int(row["ST"])
     sum_SI = 0
     for genome in index_genome.keys():
@@ -159,3 +158,5 @@ def multi_cpu_prepare(spot, df_table_spot_mmseqs, list_genome_combinaisons, d_ge
 
 
     return spot, d_tmp[spot]
+
+
