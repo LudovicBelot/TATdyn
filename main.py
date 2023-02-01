@@ -8,6 +8,7 @@ import spot_pangenome
 import HTgenes
 import HCspot
 import Spot_dissimilarity
+import TAT_defense_finder
 
 #commandline example : 
 # python script/main.py -d input/full_photo -c input/full_photo/fully_assembled_photo_corefeatures.tsv -o results -t input/full_photo/tree_full_photo_rooted_asymbiotica.nwk -r Ph22.1222.00005 --threads 0 --mygenes input/TT01_TA_coordinates.tsv
@@ -64,13 +65,16 @@ def main():
         list_combinaisons, index_genome = Spot_dissimilarity.prepare_data(f"{args.outdir}/{today_date}_TATdyn", n_core = n_cores)
         Spot_dissimilarity.calculate_dissimilarity(list_combinaisons, index_genome, f"{args.outdir}/{today_date}_TATdyn")
 
-
-    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/5-optional_defense-finder/defense_finder") == False and args.defense_finder == True:
-
+    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/5-optional_defense-finder/1_spot_pangenome_defense_system.tsv") == False and args.defense_finder == True:
+        os.system(f"cat {args.indir}/gff3/*.gff > {args.outdir}/{today_date}_TATdyn/tmp/cat4defense_gff")
+        TAT_defense_finder.spot_defense_finder(f"{args.outdir}/{today_date}_TATdyn/1-core_intervals/all_genomes_intervals.tsv", 
+                                                f"{args.outdir}/{today_date}_TATdyn/tmp/cat_proteins.prt", 
+                                                f"{args.outdir}/{today_date}_TATdyn/tmp/cat4defense_gff", 
+                                                f"{args.outdir}/{today_date}_TATdyn/5-optional_defense-finder", 
+                                                n_core=n_cores)
 
     #combine the results in one final file
-    if os.path.exists(f"{args.outdir}/{today_date}_TATdyn/all_results.tsv") == False:
-        utilities.combine_results(f"{args.outdir}/{today_date}_TATdyn", user_gene = args.mygenes)
+    utilities.combine_results(f"{args.outdir}/{today_date}_TATdyn", user_gene = args.mygenes, TAT_defense = args.defense_finder)
 
 
 def get_args():

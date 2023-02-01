@@ -8,9 +8,12 @@ import multiprocessing
 from multiprocessing import  Pool
 
 
-def check_dir(outdir, date):
+def check_dir(outdir, date, **kwargs):
+    TAT_defense = kwargs.get("TAT_defense", False)
 
     list_f = ["1-core_intervals", "2-spot_pangenome", "3-HC_analysis", "4-Spot_dissimilarity", "tmp", "tmp/mmseqs"]
+    if TAT_defense == True:
+        list_f.append("5-optional_defense-finder")
 
     list_folders2create = []
     list_folders2create.append(outdir)
@@ -122,6 +125,7 @@ def multicore_pd_apply(df, func, **kwargs):
 
 def combine_results(outdir, **kwargs):
     user_genes = kwargs.get("user_gene", None)
+    TAT_defense = kwargs.get("TAT_defense", False)
     #small functions which will combine the results from Hot/Coldspot analysis with the dissimilarity index for each spot
     # Also will add a column with the localization of each user genes if given
     #loading both results dataframe
@@ -151,11 +155,23 @@ def combine_results(outdir, **kwargs):
                 print(f"User input element {elements_row[1]['id']}, could not be placed within the spot pangenome generated (part of core genome ?)")
 
         df_res["user_id"] = df_res.apply(lambda x: (",").join(x["user_id"]), axis = 1)
-        df_res[df_res["user_id"] != ""].to_csv(f"{outdir}/all_results_with_user_id_spots_only.tsv", sep = "\t", index = False)
 
+    if TAT_defense == True:
+        df_defense = pd.read_csv(f"{outdir}/5-optional_defense-finder/1_spot_pangenome_defense_system.tsv", sep= "\t")
+        for defense_spot in df_defense.iterrows():
+            str2add = ""
+            total_defense = 0
+            for defense_type in df_defense.loc[:,df_defense.columns != "Spot_number"].columns.tolist():
+                total_defense += defense_spot[1][defense_type]
+                if defense_spot[1][defense_type] != 0:
+                    str2add += f"{defense_spot[1][defense_type]} {defense_type} ~ "
+
+            df_res.loc[defense_spot[1]["Spot_number"],"Defense_systems"] = f"{total_defense} defense systems: {str2add}"
 
     df_res.to_csv(f"{outdir}/all_results_combined.tsv", sep = "\t", index = False)
+    if user_genes != None :
+        df_res[df_res["user_id"] != ""].to_csv(f"{outdir}/all_results_with_user_id_spots_only.tsv", sep = "\t", index = False)
     df_filtered = df_res[df_res["HC_spot"] != "Empty_spot"]
     df_filtered = df_filtered[(df_filtered["βsor"] != 0) & (df_filtered["βsor"].notnull()) & (df_filtered["βsim"] != "div0")].sort_values(by ="HC_spot")
     df_filtered.to_csv(f"{outdir}/all_results_combined_filtered.tsv", sep = "\t", index = False)
-
+    
