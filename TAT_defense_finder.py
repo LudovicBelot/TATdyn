@@ -1,7 +1,10 @@
 import pandas as pd
 import sys
 import os
+import copy
 from Bio import SeqIO
+
+
 
 def spot_defense_finder(spot_pangenome_file, prt_file, gff_file, outdir, **kwargs):
     n_core = kwargs.get("n_core", 1)
@@ -33,25 +36,28 @@ def spot_defense_finder(spot_pangenome_file, prt_file, gff_file, outdir, **kwarg
     
     print("Running defense-finder")
     #running defense-finder for each genome
-    os.system(f"defense-finder run -o {outdir} --db-type gembase {prt_file}_formated.faa")
-    
+    #os.system(f"defense-finder run -o {outdir} --db-type gembase {prt_file}_formated.faa") #Uncomment here
+
     #running padloc for each genome
     # Did put PADLOC on a hold because it has problem being executed on WSL due t the init system.
     # might activate Systemd if defense-finder isn't enough to detect all systems
     # print("Running PADLOC")
     #os.system(f"conda run -n padloc padloc --faa {prt_file} --outdir {outdir} --cpu {n_core} --gff {gff_file}")
 
+    #run mmseqs to determine if we have redundants systems
+
     #Parsing the results
     print("Parsing defense-finder results compared to the spot_pangenome previously generated")
-    df_summary, df_spot_defense, str_systems_out_of_spotpangenome= defense_finder_parser(f"{outdir}/defense_finder_systems.tsv", df_spot_pangenome)
+    df_summary, df_spot_defense_without_duplicate, df_spot_defense_without_duplicate_numbers, str_systems_out_of_spotpangenome = defense_finder_parser(f"{outdir}/defense_finder_systems.tsv", df_spot_pangenome, prt_file+"_formated.faa", outdir)
+
     df_summary.to_csv(f"{outdir}/0_summary_full_genome_defense_system_screening.tsv", sep = "\t", index = False)
-    df_spot_defense.to_csv(f"{outdir}/1_spot_pangenome_defense_system.tsv", sep = "\t", index = False)
+    df_spot_defense_without_duplicate.to_csv(f"{outdir}/1_spot_pangenome_defense_system.tsv", sep = "\t", index = False)
+    df_spot_defense_without_duplicate_numbers.to_csv(f"{outdir}/1bis_spot_pangenome_defense_system_numbers.tsv", sep = "\t", index = False)
     with open(f"{outdir}/2_out_of_spotpangenome_defense_system.txt", "w") as f:
         f.write(str_systems_out_of_spotpangenome)
 
 
-
-def defense_finder_parser(defense_finder_systems_file, df_spot_pangenome):
+def defense_finder_parser(defense_finder_systems_file, df_spot_pangenome, cat_prt_file, outdir):
 
     #will create two files => one summary with the numbers in each genome of each type of Defense system
     # second file will be the corresponding spot to each system.
@@ -80,11 +86,11 @@ def defense_finder_parser(defense_finder_systems_file, df_spot_pangenome):
     for i in range(df_spot_pangenome.index[-1]+1):
         d_spot_defense[i]= {}
         for defense_type in df_defense["type"].drop_duplicates().tolist():
-            d_spot_defense[i][defense_type] = 0
+            d_spot_defense[i][defense_type] = []
 
     for row in df_defense.iterrows():
         if df_spot_pangenome[(df_spot_pangenome[row[1]["genome"]].str.contains(f"{row[1]['sys_beg']}", na = False)) & (df_spot_pangenome[row[1]["genome"]].str.contains(f"{row[1]['sys_end']}", na = False))].empty == False:
-            d_spot_defense[df_spot_pangenome[(df_spot_pangenome[row[1]["genome"]].str.contains(f"{row[1]['sys_beg']}", na = False)) & (df_spot_pangenome[row[1]["genome"]].str.contains(f"{row[1]['sys_end']}", na = False))].index[0]][row[1]["type"]] += 1
+            d_spot_defense[df_spot_pangenome[(df_spot_pangenome[row[1]["genome"]].str.contains(f"{row[1]['sys_beg']}", na = False)) & (df_spot_pangenome[row[1]["genome"]].str.contains(f"{row[1]['sys_end']}", na = False))].index[0]][row[1]["type"]].append(row[1]["protein_in_syst"])
         else :
             str_systems_out_of_spotpangenome += f"The following system was not detected within the given spot-pangenome : {row[1]['sys_id']}\t{row[1]['type']}\t{row[1]['protein_in_syst']}\n"
 
@@ -92,14 +98,92 @@ def defense_finder_parser(defense_finder_systems_file, df_spot_pangenome):
     df_spot_defense = df_spot_defense.loc[~(df_spot_defense == 0).all(axis=1)]
     df_spot_defense.reset_index(inplace = True)
     df_spot_defense.rename(columns={"index":"Spot_number"}, inplace= True)
+    df_spot_defense_without_duplicate, df_spot_defense_without_duplicate_numbers = remove_redundants(df_spot_defense, cat_prt_file, outdir)
+
+    return df_summary, df_spot_defense_without_duplicate, df_spot_defense_without_duplicate_numbers , str_systems_out_of_spotpangenome
 
 
-    return df_summary, df_spot_defense, str_systems_out_of_spotpangenome
+def remove_redundants(df_spot_defense, cat_prt_file, outdir):
 
+    #first we create a tmp file for the mmseq alignment with the prt sequences of each systems in each spot
+    prt_SeqIO = SeqIO.index(cat_prt_file, "fasta")
+    d_prt2keep = {}
+    for defense_type in df_spot_defense.loc[:,df_spot_defense.columns != "Spot_number"].columns.tolist():
+        d_prt2keep[defense_type] = [x for x in df_spot_defense[defense_type].tolist() if x != []]
+    
+    #Now using mmseqs for each type of systems to determine if we have redundants systems in our dataset
+    d_defense_representatives = {} #k = defense type, v = list of representatives systems
+    for defense_type, list_of_prt_lists in d_prt2keep.items():
+        d_defense_representatives[defense_type] = []
+        for list_prt in list_of_prt_lists:
+            str_tmp_prt = ""
+            for i in list_prt:
+                for x in i.strip().split(","):
+                    str_tmp_prt += f">{x}\n{prt_SeqIO[x].seq}\n"
+        
+            if str_tmp_prt == "":
+                continue
+            else : 
+                os.remove(cat_prt_file+".tmp_spot_defense_cluster4mmseqs.faa") # Idk why I have some problems sometimes here with the tmp file overwriting so added this line
+                with open(cat_prt_file+".tmp_spot_defense_cluster4mmseqs.faa", "w") as f:
+                    f.write(str_tmp_prt)
+
+                os.system(f"mmseqs easy-cluster {cat_prt_file+'.tmp_spot_defense_cluster4mmseqs.faa'} {outdir}/tmp/spot_defense {outdir}/tmp --min-seq-id 0.8 -v 0 --remove-tmp-files")
+                d_defense_representatives[defense_type] += parse_representatives_mmseqs(f"{outdir}/tmp/spot_defense_cluster.tsv", list_prt)
+
+    #now we localize again each representative system within the spot pangenome
+    d_representatives_res = {}
+    for i in range(len(df_spot_defense)):
+        d_representatives_res[i] = {}
+        for defense_type in d_defense_representatives.keys():
+            d_representatives_res[i][defense_type] = []
+        
+    df_spot_defense.loc[:,df_spot_defense.columns != "Spot_number"] = df_spot_defense.loc[:,df_spot_defense.columns != "Spot_number"].applymap(lambda x: ",".join(x))
+    for defense_type, list_str_representatives in d_defense_representatives.items():
+        for str_representatives in list_str_representatives:
+            d_representatives_res[df_spot_defense[df_spot_defense[defense_type].str.contains(str_representatives)]["Spot_number"].values[0]][defense_type] += [str_representatives]
+
+    df_representatives_res = pd.DataFrame.from_dict(d_representatives_res, orient = "index")
+    df_representatives_res = df_representatives_res.loc[~(df_representatives_res.str.len()==0).all(axis=1)]
+    df_representatives_res.reset_index(inplace = True)
+    df_representatives_res.rename(columns={"index":"Spot_number"}, inplace= True)
+    df_representatives_res_numbers = df_representatives_res.copy(deep = True)
+    df_representatives_res_numbers.loc[:,df_representatives_res_numbers.columns != "Spot_number"] = df_representatives_res_numbers.loc[:,df_representatives_res_numbers.columns != "Spot_number"].applymap(lambda x: len(x))
+    df_representatives_res.loc[:,df_representatives_res.columns != "Spot_number"] = df_representatives_res.loc[:,df_representatives_res.columns != "Spot_number"].applymap(lambda x: ",".join(x))
+
+    return df_representatives_res, df_representatives_res_numbers
+            
+
+
+
+def parse_representatives_mmseqs(mmseqs_tsv, list_defense_this_spot):
+    
+    df_mmseqs = pd.read_csv(mmseqs_tsv, sep = "\t", names = ["query","subject"])
+    list_defense_representatives = copy.deepcopy(list_defense_this_spot) #we will remove systems from this list in case there are redundance with others systems
+    #here we considered as redundant, systems with at least one gene matching during the mmseqs analysis
+
+    for defense_system in list_defense_this_spot:
+        if defense_system in list_defense_representatives:
+            for gene in defense_system.strip().split(","):
+                if len(df_mmseqs[df_mmseqs["query"] == gene]) == 1:
+                    continue
+                else:
+                    for row in df_mmseqs[(df_mmseqs["query"] == gene) & (df_mmseqs["subject"] != gene)].iterrows():
+                        list_defense_representatives = remove_redundants_systems(row[1]["query"], row[1]["subject"], list_defense_representatives)
+
+    return list_defense_representatives
+
+
+def remove_redundants_systems(query, subject, list_defense_representatives):
+    for i in list_defense_representatives:
+        if subject in i and query not in i:
+            list_defense_representatives.remove(i)
+
+    return list_defense_representatives
 
 
 if __name__ == "__main__":
     spot_defense_finder(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4], n_core= 12)
 
     # test commandline : 
-    # python script/TAT_defense-finder.py results/2023-01-26_TATdyn_6_full_photo_nopb/1-core_intervals/all_genomes_intervals.tsv results/2023-01-26_TATdyn_6_full_photo_nopb/tmp/cat_proteins.prt results/2023-01-26_TATdyn_6_full_photo_nopb/tmp/Ph6fullphoto_concat.gff results/2023-01-26_TATdyn_6_full_photo_nopb/5-optional_defense-finder
+    # python script/TAT_defense_finder.py results/2023-01-26_TATdyn_6_full_photo_nopb/1-core_intervals/all_genomes_intervals.tsv results/2023-01-26_TATdyn_6_full_photo_nopb/tmp/cat_proteins.prt results/2023-01-26_TATdyn_6_full_photo_nopb/tmp/Ph6fullphoto_concat.gff results/2023-01-26_TATdyn_6_full_photo_nopb/5-optional_defense-finder
