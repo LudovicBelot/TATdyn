@@ -157,7 +157,7 @@ def combine_results(outdir, **kwargs):
         df_res["user_id"] = df_res.apply(lambda x: (",").join(x["user_id"]), axis = 1)
 
     if TAT_defense == True:
-        df_defense = pd.read_csv(f"{outdir}/5-optional_defense-finder/1_spot_pangenome_defense_system.tsv", sep= "\t")
+        df_defense = pd.read_csv(f"{outdir}/5-optional_defense-finder/1bis_spot_pangenome_defense_system_numbers.tsv", sep= "\t")
         for defense_spot in df_defense.iterrows():
             str2add = ""
             total_defense = 0

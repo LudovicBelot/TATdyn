@@ -36,7 +36,7 @@ def spot_defense_finder(spot_pangenome_file, prt_file, gff_file, outdir, **kwarg
     
     print("Running defense-finder")
     #running defense-finder for each genome
-    #os.system(f"defense-finder run -o {outdir} --db-type gembase {prt_file}_formated.faa") #Uncomment here
+    os.system(f"defense-finder run -o {outdir} --db-type gembase {prt_file}_formated.faa") #Uncomment here
 
     #running padloc for each genome
     # Did put PADLOC on a hold because it has problem being executed on WSL due t the init system.
@@ -123,8 +123,9 @@ def remove_redundants(df_spot_defense, cat_prt_file, outdir):
         
             if str_tmp_prt == "":
                 continue
-            else : 
-                os.remove(cat_prt_file+".tmp_spot_defense_cluster4mmseqs.faa") # Idk why I have some problems sometimes here with the tmp file overwriting so added this line
+            else :
+                if  os.path.exists(cat_prt_file+".tmp_spot_defense_cluster4mmseqs.faa") == True:
+                    os.remove(cat_prt_file+".tmp_spot_defense_cluster4mmseqs.faa") # Idk why I have some problems sometimes here with the tmp file overwriting so added this line
                 with open(cat_prt_file+".tmp_spot_defense_cluster4mmseqs.faa", "w") as f:
                     f.write(str_tmp_prt)
 
@@ -144,7 +145,7 @@ def remove_redundants(df_spot_defense, cat_prt_file, outdir):
             d_representatives_res[df_spot_defense[df_spot_defense[defense_type].str.contains(str_representatives)]["Spot_number"].values[0]][defense_type] += [str_representatives]
 
     df_representatives_res = pd.DataFrame.from_dict(d_representatives_res, orient = "index")
-    df_representatives_res = df_representatives_res.loc[~(df_representatives_res.str.len()==0).all(axis=1)]
+    df_representatives_res = df_representatives_res.loc[~(df_representatives_res.astype(str) == "[]").all(axis=1)]
     df_representatives_res.reset_index(inplace = True)
     df_representatives_res.rename(columns={"index":"Spot_number"}, inplace= True)
     df_representatives_res_numbers = df_representatives_res.copy(deep = True)
