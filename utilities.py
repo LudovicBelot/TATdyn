@@ -132,7 +132,9 @@ def combine_results(outdir, **kwargs):
 
     df_HC = pd.read_csv(f"{outdir}/3-HC_analysis/HC_spots_pangenome.tsv", sep = "\t")
     df_dissimilarity = pd.read_csv(f"{outdir}/4-Spot_dissimilarity/Final_spot_dissimilarity_index.tsv", sep = "\t")
-
+    df_spot_integrity = pd.read_csv(f"{outdir}/1-core_intervals/all_genomes_check_corespot.tsv", sep = "\t") #only useful to get the number of genomes presenting a Breakpoint Interval
+    df_spot_integrity = df_spot_integrity[["interval_number","n_accepted"]].rename(columns = {"interval_number": "spot", "n_accepted": "n_sites_in_spot"})
+    
     #reordering the dataframe + renaming the columns
     df_HC = df_HC.rename(columns = {"spot_number": "spot", "HTevents_number": "HTg", "n_accessory_gene_families": "n_acc", "ref_genome_left_c": "ref_left_c", "ref_genome_right_c": "ref_right_c"})
     df_HC = df_HC.loc[:,["spot", "ref_left_c", "ref_right_c", "n_acc", "HTg", "HC_spot"]].iloc[:-1]
@@ -140,6 +142,7 @@ def combine_results(outdir, **kwargs):
     df_dissimilarity["spot"] = df_dissimilarity["spot"].astype("int")
     df_res = pd.merge(df_HC, df_dissimilarity, on = "spot", how = "left")
     df_res[["ref_left_c", "ref_right_c"]] = df_res[["ref_left_c", "ref_right_c"]].astype("int")
+    df_res = pd.merge(df_res, df_spot_integrity, on = "spot", how = "left")
 
     #in case the user provide a file with the coordinates of elements to localize, add a new column with the id of the element within the corresponding spot
     if user_genes != None:

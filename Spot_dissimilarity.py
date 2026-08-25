@@ -26,10 +26,11 @@ def prepare_data(outdir, **kwargs):
     list_genome_combinaisons = generate_combinaison(index_genome)
     
     d_res = {}
+    
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = {executor.submit(multi_cpu_prepare, spot, df_table_spot_mmseqs, list_genome_combinaisons, d_genome_index): spot for spot in df_table_spot_mmseqs["spot"].tolist()}
+        futures = {executor.submit(multi_cpu_prepare, spot, df_table_spot_mmseqs, list_genome_combinaisons, d_genome_index): spot for spot in df_table_spot_mmseqs["spot"].drop_duplicates().tolist()}
         #progress_bar
-        for f in tqdm(concurrent.futures.as_completed(futures), total = len(df_table_spot_mmseqs["spot"].tolist()), desc = " Preparing each spot data for index dissimilarity calcul"):
+        for f in tqdm(concurrent.futures.as_completed(futures), total = len(df_table_spot_mmseqs["spot"].drop_duplicates().tolist()), desc = " Preparing each spot data for index dissimilarity calcul"):
             pass
     
         for future in concurrent.futures.as_completed(futures):
@@ -150,13 +151,37 @@ def calculate_βsor(row, list_combinaisons, index_genome):
 def multi_cpu_prepare(spot, df_table_spot_mmseqs, list_genome_combinaisons, d_genome_index):
 
     d_tmp = {}
-    d_tmp[spot] = {"spot": spot, "ST": len(df_table_spot_mmseqs[df_table_spot_mmseqs["spot"] == spot])}
+
+    d_tmp[spot] = {"spot": spot, "ST": compute_ST(spot, df_table_spot_mmseqs, mode = "nr")}
     for g, genome_name in d_genome_index.items():
         d_tmp[spot][f"{g}_total_accessory"] = count_accessory_genes(genome_name, spot, df_table_spot_mmseqs)
     for genome_combinaison in list_genome_combinaisons:
         d_tmp[spot][f"g{genome_combinaison[0]}_g{genome_combinaison[1]}_common_accessory"] = count_common_accessory_genes(d_genome_index[f"g{genome_combinaison[0]}"], d_genome_index[f"g{genome_combinaison[1]}"], spot, df_table_spot_mmseqs)
 
-
     return spot, d_tmp[spot]
 
 
+def compute_ST(spot, df, mode = "mode"):
+    """
+    Function which will compute the ST value for a spot.
+    Two modes are possibles:
+    "families" ; will consider the ST value only as the number of gene families it exists
+    "nr": nr for non redundant, will consider the maximum number of genes in a single genome for each family.
+    
+    """
+    st = 0
+    list_col = [x for x in df.columns.tolist() if x not in ["id", "spot"]]
+    if mode == "families":
+        return len(df[df["spot"] == spot])
+    
+    elif mode == "nr":
+        for i in df[df["spot"] == spot].index.tolist():
+            max_copy = 0
+            for col in list_col:
+                if df.loc[i,col] == "?":
+                    continue
+                elif int(df.loc[i,col]) > max_copy:
+                    max_copy = int(df.loc[i,col])
+            st += max_copy
+
+        return st

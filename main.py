@@ -13,7 +13,9 @@ import TAT_defense_finder
 #commandline example : 
 # python script/main.py -d input/full_photo -c input/full_photo/fully_assembled_photo_corefeatures.tsv -o results -t input/full_photo/tree_full_photo_rooted_asymbiotica.nwk -r Ph22.1222.00005 --threads 0 --mygenes input/TT01_TA_coordinates.tsv
 # python script/main.py -c input/core_genome_photorhabdus_genus_features.csv --indir input/panacota_photo --outdir results --tree input/panacota_photo/photo_genus.treefile --mygenes input/list_TA/TT01_TA_coordinates.tsv --threads 0
-
+#
+#last up to date commandline:
+#python script/main.py -d input/22-12-13_6_photos/2-annotate -c input/22-12-13_6_photos/6_full_photo_core_features.tsv -o results -t input/22-12-13_6_photos/6-tree/6Pho.nucl.grp.aln.iqtree_tree.treefile --mygenes input/list_TA/TT01_TA_coordinates.tsv -r Ph22.1222.00005 --threads 0
 
 def main():
 
